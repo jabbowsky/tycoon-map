@@ -21,28 +21,24 @@ public class TycoonMap {
     private String name;
     private TycoonPoint[][] points;  
      
-    private double maxHeight = 8000d;
-    private double seaLine = 0d;
+    private double maxHeight = 8848d; // Everest   
+    private double seaLine = 0d; // it's almost real sea line
     private int rateOfSmoose = 1;
-    private int mapSize = 0;
+    private int mapPower = 0;
     private TycoonPoint currentPoint;
     private SimplePoint currentSimplePoint;
-    private int countPoints;
+    private int countPoints = 0;
     public boolean isEoP = false;
     
     public TycoonMap(int x, int y, TycoonPoint[][] points, String name){
-        this.x = x;
-        this.y = y;
+        this.x = x-1;
+        this.y = y-1;
         this.name = name;
         this.points = points;
-        int longSide = y;
-        if( x > y ){
-            longSide = x;
-        }
-        while(1<<mapSize < longSide){
-            mapSize++;
-            countPoints = (int)Math.pow(2d, mapSize*2);
-        } 
+        // Calculate power of map to use it order
+        this.mapPower = (int)round(Math.log(x>y?x:y)/Math.log(2),0) ;
+      //  this.mapPower = x>y?x:y;
+        countPoints = x*y;
     }; 
     
     public TycoonMap(int x, int y, TycoonPoint[][] points){
@@ -64,28 +60,38 @@ public class TycoonMap {
         this(64);
     }; 
     
-//    A---B
-//    |   |
-//    D---C    
+    /* This function need to set border points
+     * points name we take from next squer:
+     *    A---B --- x
+     *    |   |
+     *    D---C    
+     *    |
+     *    |
+     *    y
+     * there is 3 options: 
+     * function called with 4 points 
+     * function called with 2 points and rest 2 points are calculated automaticaly as squer points
+     * function called without any points in this case we take default
+     */
     public void setStartPoints(TycoonPoint[] startPoint){
         switch (startPoint.length) {
             case 4:
-                points[0][0]     = startPoint[0];
-                points[x-1][0]   = startPoint[1];
-                points[x-1][y-1] = startPoint[2];
-                points[0][y-1]   = startPoint[3];
+                points[0][0] = startPoint[0];
+                points[x][0] = startPoint[1];
+                points[x][y] = startPoint[2];
+                points[0][y] = startPoint[3];
                 break;
             case 2:
-                points[0][0]     = startPoint[0];
-                TycoonPoint point1 = new TycoonPoint(x-1,0);
+                points[0][0]       = startPoint[0];
+                TycoonPoint point1 = new TycoonPoint(x,0);
                 point1.setLat(startPoint[0].getLat());
                 point1.setLng(startPoint[1].getLng());
-                points[x-1][0]   = point1;
-                points[x-1][y-1] = startPoint[1];
-                TycoonPoint point3 = new TycoonPoint(0,y-1);
+                points[x][0]       = point1;
+                points[x][y]       = startPoint[1];
+                TycoonPoint point3 = new TycoonPoint(0,y);
                 point3.setLat(startPoint[1].getLat());
                 point3.setLng(startPoint[0].getLng());
-                points[0][y-1]   = point3;
+                points[0][y]       = point3;
                 break;
             default:
                 setStartPoints();
@@ -98,17 +104,17 @@ public class TycoonMap {
         startPoint[0] = new TycoonPoint(0,0);
         startPoint[0].setLat(latA);
         startPoint[0].setLng(lngA);
-        startPoint[1] = new TycoonPoint(x-1,y-1);
+        startPoint[1] = new TycoonPoint(x,y);
         startPoint[1].setLat(latC);
         startPoint[1].setLng(lngC);
         setStartPoints(startPoint);
     }
     
     private void setStartPoints(){
-        points[0][0]     = new TycoonPoint(0,0);
-        points[x-1][0]   = new TycoonPoint(x-1,0);
-        points[0][y-1]   = new TycoonPoint(0,y-1);
-        points[x-1][y-1] = new TycoonPoint(x-1,y-1);
+        points[0][0] = new TycoonPoint(0,0);
+        points[x][0] = new TycoonPoint(x,0);
+        points[0][y] = new TycoonPoint(0,y);
+        points[x][y] = new TycoonPoint(x,y);
     }    
     
     public BufferedImage drawMap(){
@@ -119,7 +125,12 @@ public class TycoonMap {
             }
         }
         return res;
-    }   
+    }
+    
+    public void checkPointDb(TycoonPoint point){
+        // check point in database
+        
+    }
     
     private int getColorFromHeight(double height){
         int color; 
@@ -172,17 +183,29 @@ public class TycoonMap {
             return 1;
         }                   
     }
-    
-    private void setLTude(TycoonPoint point){
-       double lat = ( (point.getY()+1)*(   (point.getX()+1)*(points[0][0].getLat())    +
-                                        (x- point.getX()-1)*(points[x-1][0].getLat()))/x +
-                    (y-point.getY()-1)*(   (point.getX()+1)*(points[0][y-1].getLat())    +
-                                        (x- point.getX()-1)*(points[x-1][y-1].getLat()))/x)/y;
-       
-       double lng = ( (point.getY()+1)*(   (point.getX()+1)*(points[0][0].getLng())    +
-                                        (x- point.getX()-1)*(points[x-1][0].getLng()))/x +
-                    (y-point.getY()-1)*(   (point.getX()+1)*(points[0][y-1].getLng())    +
-                                        (x- point.getX()-1)*(points[x-1][y-1].getLng()))/x)/y;
+    /*
+     *    A-x1,y1-B->x
+     *    |   |   |
+     *    |-xn,yn-|
+     *    |   |   |
+     *    D-x2,y2-C
+     *    |
+     *    v y
+     *    
+     * X(n,m) = (X1+X2+X3+X4)*n*m/(N*M)
+     */
+    private void setFlatLTude(TycoonPoint point){
+       TycoonPoint pointA = points[0][0];
+       TycoonPoint pointB = points[x][0];
+       TycoonPoint pointC = points[x][y];
+       TycoonPoint pointD = points[0][y];
+     
+       double x1 = pointA.getLat() + (pointB.getLat() - pointA.getLat())*(point.getX())/(x);
+       double y1 = pointA.getLng() + (pointB.getLng() - pointA.getLng())*(point.getX())/(x);
+       double x2 = pointD.getLat() + (pointC.getLat() - pointD.getLat())*(point.getX())/(x);
+       double y2 = pointD.getLng() + (pointC.getLng() - pointD.getLng())*(point.getX())/(x);
+       double lat = x1 + (x2 - x1)*(point.getY()+1)/(y);
+       double lng = y1 + (y2 - y1)*(point.getY()+1)/(y);
     
        point.setLat(round(lat,6));
        point.setLng(round(lng,6));
@@ -200,21 +223,19 @@ public class TycoonMap {
     public TycoonPoint nextPoint(){
         int result = fromPoint2Num(currentSimplePoint);
         result++; 
-        System.err.println("result:" + result + " " + String.valueOf(isEoP)+ " " + currentSimplePoint.getX() + " " + currentSimplePoint.getY());
         if(result >= countPoints){
             result = 0;
             isEoP = true;
         }
         currentSimplePoint = fromNum2Point(result);
-        System.err.println("result:" + result + " " + String.valueOf(isEoP)+ " " + currentSimplePoint.getX() + " " + currentSimplePoint.getY());
-        if(currentSimplePoint.getX() >= x || currentSimplePoint.getY() >= y){
+        if(currentSimplePoint.getX() > x || currentSimplePoint.getY() > y){
             return nextPoint();
         }else{
             if(points[currentSimplePoint.getX()][currentSimplePoint.getY()] != null){
                 currentPoint = points[currentSimplePoint.getX()][currentSimplePoint.getY()];
             }else{
                 currentPoint = new TycoonPoint(currentSimplePoint.getX(),currentSimplePoint.getY());
-                setLTude(currentPoint);
+                setFlatLTude(currentPoint);
                 points[currentSimplePoint.getX()][currentSimplePoint.getY()] = currentPoint;
             }
             return currentPoint;
@@ -230,12 +251,12 @@ public class TycoonMap {
             isEoP = true;            
         }
         currentSimplePoint = fromNum2Point(result);
-        if(currentSimplePoint.getX() >= x || currentSimplePoint.getY() >= y){
+        if(currentSimplePoint.getX() > x || currentSimplePoint.getY() > y){
             return prevPoint();
         }else{
             if(points[currentSimplePoint.getX()][currentSimplePoint.getY()] == null){
                 currentPoint = new TycoonPoint(currentSimplePoint.getX(),currentSimplePoint.getY());
-                setLTude(currentPoint);
+                setFlatLTude(currentPoint);
                 points[currentSimplePoint.getX()][currentSimplePoint.getY()] = currentPoint;
             }
             return currentPoint;
@@ -243,17 +264,16 @@ public class TycoonMap {
     }
     
     public boolean isLastPoint(){
-        int lastNumber = (int)Math.pow(2d, mapSize)-1 ;
-        return currentPoint.getX() == lastNumber && currentPoint.getY() == lastNumber;
+        return currentPoint.getX() == x && currentPoint.getY() == y;
     }
    
     public boolean isFirstPoint(){
         return currentPoint.getX() == 0 && currentPoint.getY() == 0;
     }
     
-    private int fromPoint2Num(SimplePoint point){
+    public int fromPoint2Num(SimplePoint point){
         int result = 0;
-        for(int i = 0; i <= mapSize; i++){
+        for(int i = 0; i < mapPower; i++){
             int firstBit =  getBit(point.getY(), i);
             int secondBit = getBit(point.getX(), i);
             result = (result<<2)| (firstBit <<1)| secondBit;
@@ -261,13 +281,37 @@ public class TycoonMap {
         return result;
     }
     
-    private SimplePoint fromNum2Point(int result){
+    public SimplePoint fromNum2Point(int result){
         int nxtX = 0;
         int nxtY = 0;
-        for(int i = 0; i <= mapSize; i++){
+        for(int i = 0; i < mapPower; i++){
             nxtX = (nxtX << 1) | getBit(result,i*2);
             nxtY = (nxtY << 1) | getBit(result,i*2+1);
         }
         return new SimplePoint(nxtX,nxtY);
+    }
+    
+    public String testFromPoint2Num(){
+        int length = String.valueOf(x*y).length();
+        String res = "testFromPoint2Num(mapPower"+String.valueOf(mapPower)+ " length:" +String.valueOf(length)+"):<br/>";
+        for(int i=0;i<x;i++){
+            for(int j=0;j<y;j++){
+                SimplePoint p = new SimplePoint(i,j);
+                res += "|"+String.format("%0"+length+"d",fromPoint2Num(p))+"|";
+            }
+            res += "<br/>";
+        }
+        return res;
+    }
+    
+    public String testFromNum2Point(){
+        String res = "testFromNum2Point(mapPower"+String.valueOf(mapPower)+"):<br/>";
+        int lengthX = String.valueOf(x).length();
+        int lengthY = String.valueOf(y).length();
+        for(int i=0;i<(x+1)*(y+1);i++){
+          SimplePoint p = fromNum2Point(i);
+          res += String.format("%0"+lengthX+"d",p.getX())+","+String.format("%0"+lengthX+"d",p.getY())+" - " + String.valueOf(i) +";<br/>";
+        }
+        return res;
     }
 }

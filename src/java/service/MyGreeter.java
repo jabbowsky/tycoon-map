@@ -18,8 +18,10 @@ public class MyGreeter {
     public String greet(String name){
         map = new TycoonMap(16);
         //map.setStartPoints(90d,0d,-80d,174d);
-    //result = mapMake.makeAndSaveMap();
-        String result = "Map is done  "+ name+ "!"; 
+        //result = mapMake.makeAndSaveMap();
+        String result = "Map is done  "+ name+ "!";
+        //result += map.testFromPoint2Num();
+        //result += map.testFromNum2Point();
         while (!map.isEoP){
         //for (int i=0;i<100;i++){
             result +=  map.makeRequestString()+ "<br/>";
