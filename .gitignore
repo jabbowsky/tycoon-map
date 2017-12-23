@@ -10,6 +10,7 @@
 # Build folred #
 ###################
 build/*
+dist/*
 
 # log folder #
 ###################
